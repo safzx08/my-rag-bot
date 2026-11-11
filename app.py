@@ -27,7 +27,7 @@ from google.genai import types
 # 30-second timeout (value is in milliseconds) so a stuck request fails fast
 client = genai.Client(
     api_key=api_key,
-    http_options=types.HttpOptions(timeout=30000),
+    http_options=types.HttpOptions(timeout=60000),
 )
 
 
@@ -121,6 +121,17 @@ with st.sidebar:
     if st.button("Clear chat"):
         st.session_state.messages = []
         st.rerun()
+
+    if st.button("🧪 Test Gemini (say hi)"):
+        with st.spinner(f"Testing {model_choice}..."):
+            t0 = time.time()
+            try:
+                r = client.models.generate_content(
+                    model=model_choice, contents="Reply with the single word: hi"
+                )
+                st.success(f"OK in {time.time() - t0:.1f}s: {r.text}")
+            except Exception as e:
+                st.error(f"{type(e).__name__} after {time.time() - t0:.1f}s:\n\n{e}")
 
     if st.button("🔍 List models my key can use"):
         try:
