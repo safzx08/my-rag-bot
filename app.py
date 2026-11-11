@@ -15,7 +15,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 st.set_page_config(page_title="PDF Q&A Assistant", page_icon="📚", layout="centered")
 
 # Tried in order. If one returns a 4xx (bad ID, quota), the next is used.
-MODEL_CHOICES = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"]
+MODEL_CHOICES = ["gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-3.8-flash"]
 
 api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 if not api_key:
@@ -27,7 +27,7 @@ from google.genai import types
 # 30-second timeout (value is in milliseconds) so a stuck request fails fast
 client = genai.Client(
     api_key=api_key,
-    http_options=types.HttpOptions(timeout=60000),
+    http_options=types.HttpOptions(timeout=40000),
 )
 
 
