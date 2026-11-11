@@ -1,8 +1,8 @@
 streamlit
 google-genai
 sentence-transformers
-chromadb
-pypdf
-langchain
+langchain-huggingface
 langchain-community
 langchain-text-splitters
+faiss-cpu
+pypdf
