@@ -15,7 +15,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 st.set_page_config(page_title="PDF Q&A Assistant", page_icon="📚", layout="centered")
 
 # Tried in order. If one returns a 4xx (bad ID, quota), the next is used.
-MODEL_CHOICES = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
+MODEL_CHOICES = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"]
 
 api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 if not api_key:
@@ -58,20 +58,32 @@ def build_index(files):
 def ask_gemini(prompt: str, preferred: str) -> tuple[str, str]:
     """Call Gemini with retries and model fallback. Returns (answer, model_used)."""
     order = [preferred] + [m for m in MODEL_CHOICES if m != preferred]
-    last_err = None
+    log = []  # every failure, so nothing is hidden
     for model in order:
+        # Path 1: classic generate_content
         for attempt in range(3):
             try:
                 resp = client.models.generate_content(model=model, contents=prompt)
                 return (resp.text or "(Empty response from model.)"), model
             except errors.ServerError as e:  # 5xx / overloaded: retry w/ backoff
-                last_err = e
+                log.append(f"{model} (generate_content): {e.code} {e.message}")
                 time.sleep(2**attempt)
             except errors.ClientError as e:  # 4xx: bad model ID, quota, key...
-                last_err = e
-                st.toast(f"{model}: {e.code} {e.message}", icon="⚠️")
+                log.append(f"{model} (generate_content): {e.code} {e.message}")
                 break
-    raise last_err
+            except Exception as e:
+                log.append(f"{model} (generate_content): {type(e).__name__}: {e}")
+                break
+
+        # Path 2: Interactions API, if this SDK version has it
+        if hasattr(client, "interactions"):
+            try:
+                it = client.interactions.create(model=model, input=prompt)
+                return (it.output_text or "(Empty response from model.)"), model
+            except Exception as e:
+                log.append(f"{model} (interactions): {type(e).__name__}: {e}")
+
+    raise RuntimeError("\n\n".join(log))
 
 
 def build_prompt(question: str, context: str, history: list[dict]) -> str:
@@ -102,6 +114,14 @@ with st.sidebar:
     if st.button("Clear chat"):
         st.session_state.messages = []
         st.rerun()
+
+    if st.button("🔍 List models my key can use"):
+        try:
+            names = [m.name.replace("models/", "") for m in client.models.list()]
+            flash = sorted(n for n in names if "flash" in n)
+            st.write(flash or names)
+        except Exception as e:
+            st.error(f"Could not list models: {e}")
 
 files = st.file_uploader("Upload PDF(s)", type=["pdf"], accept_multiple_files=True)
 
@@ -153,8 +173,8 @@ if question := st.chat_input("Ask a question about your PDFs"):
             prompt = build_prompt(question, context, st.session_state.messages[:-1])
             try:
                 answer, used = ask_gemini(prompt, model_choice)
-            except errors.APIError as e:
-                answer, used = f"⚠️ Gemini API error {e.code}: {e.message}", None
+            except Exception as e:
+                answer, used = f"⚠️ All models failed:\n\n{e}", None
 
         st.markdown(answer)
         sources = [
