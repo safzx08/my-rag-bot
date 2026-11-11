@@ -44,7 +44,7 @@ if uploaded_file is not None:
         retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
 
         # Setup Gemini LLM & Prompt Chain for answering questions
-        llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key, temperature=0)
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key, temperature=0)
 
         system_prompt = (
             "You are an assistant for question-answering tasks. "
