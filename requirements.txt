@@ -3,5 +3,6 @@ langchain
 langchain-classic
 langchain-community
 langchain-google-genai
+sentence-transformers
 chromadb
 pypdf
