@@ -22,7 +22,13 @@ if not api_key:
     st.error("Add GEMINI_API_KEY in Streamlit Cloud → App settings → Secrets.")
     st.stop()
 
-client = genai.Client(api_key=api_key)
+from google.genai import types
+
+# 30-second timeout (value is in milliseconds) so a stuck request fails fast
+client = genai.Client(
+    api_key=api_key,
+    http_options=types.HttpOptions(timeout=30000),
+)
 
 
 # --------------------------------------------------------------- helpers ----
@@ -61,8 +67,9 @@ def ask_gemini(prompt: str, preferred: str) -> tuple[str, str]:
     log = []  # every failure, so nothing is hidden
     for model in order:
         # Path 1: classic generate_content
-        for attempt in range(3):
+        for attempt in range(2):
             try:
+                st.toast(f"Trying {model}...", icon="⏳")
                 resp = client.models.generate_content(model=model, contents=prompt)
                 return (resp.text or "(Empty response from model.)"), model
             except errors.ServerError as e:  # 5xx / overloaded: retry w/ backoff
