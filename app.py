@@ -33,7 +33,7 @@ if uploaded_file is not None:
         # Load & chunk PDF text
         loader = PyPDFLoader(tmp_path)
         docs = loader.load()
-        
+
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         splits = text_splitter.split_documents(docs)
 
@@ -44,7 +44,7 @@ if uploaded_file is not None:
 
         # Setup Gemini LLM & Prompt Chain
         llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key, temperature=0)
-        
+
         system_prompt = (
             "You are an assistant for question-answering tasks. "
             "Use the following pieces of retrieved context to answer "
@@ -52,23 +52,20 @@ if uploaded_file is not None:
             "don't know. Keep the answer concise.\n\n"
             "{context}"
         )
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
             ("human", "{input}"),
         ])
-        
+
         question_answer_chain = create_stuff_documents_chain(llm, prompt)
         rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
-    st.success("PDF processed successfully! Ask your questions below.")
+    st.success("PDF processed successfully! Ask your questions below:")
 
-    # 3. Chat Input Interface
+    # 3. Chat Interface
     user_query = st.text_input("Ask a question about your PDF:")
     if user_query:
-        with st.spinner("Searching document..."):
-            response = rag_chain.invoke({"input": user_query})
-            st.markdown("### Answer:")
-            st.write(response["answer"])
-
-    # Clean up temporary local file
-    os.remove(tmp_path)
+        response = rag_chain.invoke({"input": user_query})
+        st.write("**Answer:**")
+        st.write(response["answer"])
